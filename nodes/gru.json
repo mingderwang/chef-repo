@@ -1,0 +1,15 @@
+{
+  "name": "gru",
+  "chef_type": "node",
+  "json_class": "Chef::Node",
+  "chef_environment": "development",
+  "default": {
+  },
+  "normal": {
+  },
+  "override": {
+  },
+  "run_list": [
+    "recipe[percona]"
+  ]
+}

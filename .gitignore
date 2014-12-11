@@ -6,3 +6,7 @@ vendor
 .kitchen/
 .kitchen.local.yml
 .chef/syntax_check_cache
+cookbooks
+.vagrant/
+insecure_key
+phusion.key

@@ -1,83 +1,53 @@
-# -*- mode: ruby -*-
-# vi: set ft=ruby :
-# This is a Vagrant configuration file. It can be used to set up and manage
-# virtual machines on your local system or in the cloud. See http://downloads.vagrantup.com/
-# for downloads and installation instructions, and see http://docs.vagrantup.com/v2/
-# for more information and configuring and using Vagrant.
+VAGRANTFILE_API_VERSION = "2"
 
-Vagrant.configure("2") do |config|
-  # All Vagrant configuration is done here. The most common configuration
-  # options are documented and commented below. For a complete reference,
-  # please see the online documentation at vagrantup.com.
+Vagrant.require_version ">= 1.6.3"
 
-  # Every Vagrant virtual environment requires a box to build off of.
-  config.vm.box = "opscode-ubuntu-12.04-i386"
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.define "boot2docker"
 
-  # The url from where the 'config.vm.box' box will be fetched if it
-  # doesn't already exist on the user's system.
-  config.vm.box_url = "https://opscode-vm.s3.amazonaws.com/vagrant/opscode_ubuntu-12.04-i386_provisionerless.box"
+  config.vm.box = "yungsang/boot2docker"
 
-  # This can be set to the host name you wish the guest machine to have. Vagrant
-  # will automatically execute the configuration necessary to make this happen.
-  config.vm.hostname = "mingderwang-starter"
+  config.vm.synced_folder ".", "/vagrant"
+  # Or you can use NFS as before
+  config.vm.network "private_network", ip: "192.168.59.103"
+  # config.vm.synced_folder ".", "/vagrant", type: "nfs"
 
-  # Create a forwarded port mapping which allows access to a specific port
-  # within the machine from a port on the host machine. In the example below,
-  # port 8080 on the virtual machine is forwarded to port 9090 on the host.
-  # This will allow the virtual machine to communicate of the common proxy port 8080.
-  config.vm.network :forwarded_port, guest: 8080, host: 9090
+  # Uncomment below to use more than one instance at once
+   config.vm.network :forwarded_port, guest: 2375, host: 2375, auto_correct: true
 
-  # Create a private network, which allows host-only access to the machine
-  # using a specific IP.
-  # config.vm.network :private_network, ip: "192.168.33.10"
+  # Fix busybox/udhcpc issue
+  config.vm.provision :shell do |s|
+    s.inline = <<-EOT
+      # clean all ps -a in docker
+      sudo docker rm $(sudo docker ps –a -q)
+      if ! grep -qs ^nameserver /etc/resolv.conf; then
+        sudo /sbin/udhcpc
+      fi
+      cat /etc/resolv.conf
+    EOT
+  end
 
-  # Create a public network, which generally matched to bridged network.
-  # Bridged networks make the machine appear as another physical device on
-  # your network.
-  # config.vm.network :public_network
+  # Adjust datetime after suspend and resume
+  config.vm.provision :shell do |s|
+    s.inline = <<-EOT
+      sudo /usr/local/bin/ntpclient -s -h pool.ntp.org
+      date
+    EOT
+  end
 
-  # Share an additional folder to the guest VM. The first argument is
-  # the path on the host to the actual folder. The second argument is
-  # the path on the guest to mount the folder. And the optional third
-  # argument is a set of non-required options.
-  # config.vm.synced_folder "../data", "/vagrant_data"
+  config.vm.provision :docker do |d|
+  #  d.pull_images "yungsang/busybox"
+  #  d.run "simple-echo",
+  #    image: "yungsang/busybox",
+  #    args: "-p 8080:8080",
+  #    cmd: "nc -p 8080 -l -l -e echo hello world!"
+    d.pull_images "jaesharp/orli-ubuntu-1204-chef-client-d"
+    d.run "chef-client",
+       image: "jaesharp/orli-ubuntu-1204-chef-client-d",
+       daemonize: true
+    #d.image = "ubuntu"
+    #d.build_dir = "."
+  end
 
-  # Provider-specific configuration so you can fine-tune various
-  # backing providers for Vagrant. These expose provider-specific options.
-  # Example for VirtualBox:
-  #
-  # config.vm.provider :virtualbox do |vb|
-  #   # Don't boot with headless mode
-  #   vb.gui = true
-  #
-  #   # Use VBoxManage to customize the VM. For example to change memory:
-  #   vb.customize ["modifyvm", :id, "--memory", "1024"]
-  # end
-  #
-  # View the documentation for the provider you're using for more
-  # information on available options.
-
-  # Enable provisioning with chef solo, specifying a cookbooks path, roles
-  # path, and data_bags path (all relative to this Vagrantfile), and adding
-  # some recipes and/or roles.
-  #
-  # config.vm.provision :chef_solo do |chef|
-  #   chef.cookbooks_path = "cookbooks"
-  #   chef.roles_path = "roles"
-  #   chef.data_bags_path = "data_bags"
-  #   chef.add_recipe "mysql"
-  #   chef.add_role "web"
-  #
-  #   # You may also specify custom JSON attributes:
-  #   chef.json = { :mysql_password => "foo" }
-  # end
-
-  # Enable provisioning with chef server, specifying the chef server URL,
-  # and the path to the validation key (relative to this Vagrantfile).
-  #
-  # config.vm.provision :chef_client do |chef|
-  #   chef.chef_server_url = "https://chef.log7.info/organizations/chef"
-  #   chef.validation_client_name = "chef-validator"
-  #   chef.validation_key_path = ".chef/chef-validator.pem"
-  # end
+  config.vm.network :forwarded_port, guest: 8080, host: 8080
 end
